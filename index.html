@@ -7,6 +7,125 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <p>
+        #include <DHT.h>
+
+#define DHTPIN 4
+#define DHTTYPE DHT11 // Change to DHT22 if using DHT22
+
+#define GREEN_LED_PIN  18
+#define YELLOW_LED_PIN 19
+#define RED_LED_PIN    21
+#define BUZZER_PIN     22
+#define BUTTON_PIN     23
+
+DHT dht(DHTPIN, DHTTYPE);
+
+bool alarmSilenced = false;
+bool lastButtonState = HIGH;
+unsigned long lastBuzzerToggle = 0;
+bool buzzerState = false;
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(YELLOW_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+void loop() {
+  // Read push button state with basic debouncing
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+  if (lastButtonState == HIGH && currentButtonState == LOW) {
+    alarmSilenced = true; // Silence current alarm state
+  }
+  lastButtonState = currentButtonState;
+
+  float temp = dht.readTemperature();
+  float humidity = dht.readHumidity();
+
+  if (isnan(temp) || isnan(humidity)) {
+    Serial.println("Error reading from DHT sensor!");
+    delay(2000);
+    return;
+  }
+
+  String statusStr = "";
+  String alarmStr = "";
+
+  // Evaluate conditions
+  if (temp < 30.0) {
+    // NORMAL Condition
+    digitalWrite(GREEN_LED_PIN, HIGH);
+    digitalWrite(YELLOW_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, LOW);
+    digitalWrite(BUZZER_PIN, LOW);
+    
+    statusStr = "NORMAL";
+    alarmStr = "OFF";
+    alarmSilenced = false; // Reset mute flag when returned to normal
+  } 
+  else if (temp >= 30.0 && temp < 35.0) {
+    // WARNING Condition
+    digitalWrite(GREEN_LED_PIN, LOW);
+    digitalWrite(YELLOW_LED_PIN, HIGH);
+    digitalWrite(RED_LED_PIN, LOW);
+    
+    statusStr = "WARNING";
+
+    if (alarmSilenced) {
+      digitalWrite(BUZZER_PIN, LOW);
+      alarmStr = "OFF (SILENCED)";
+    } else {
+      alarmStr = "ON";
+      // Intermittent Buzzer (Toggle every 300 ms)
+      if (millis() - lastBuzzerToggle >= 300) {
+        lastBuzzerToggle = millis();
+        buzzerState = !buzzerState;
+        digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
+      }
+    }
+  } 
+  else {
+    // CRITICAL Condition
+    digitalWrite(GREEN_LED_PIN, LOW);
+    digitalWrite(YELLOW_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, HIGH);
+    
+    statusStr = "CRITICAL";
+
+    if (alarmSilenced) {
+      digitalWrite(BUZZER_PIN, LOW);
+      alarmStr = "OFF (SILENCED)";
+    } else {
+      alarmStr = "ON";
+digitalWrite(BUZZER_PIN, HIGH); // Continuous Buzzer
+    }
+  }
+
+  // Print to Serial Monitor
+  Serial.print("Temperature: ");
+  Serial.print(temp, 1);
+  Serial.print(" °C | Humidity: ");
+  Serial.print(humidity, 1);
+  Serial.print(" % | Status: ");
+  Serial.print(statusStr);
+  Serial.print(" | Alarm: ");
+  Serial.println(alarmStr);
+
+  delay(1000);
+}
+</p>
+    <!--
     <div class="container">
         <h1>Download Files</h1>
 <button onclick="downloadPDF('Material for Portable Mini Fan Blade.docx', 'Material for Portable Mini Fan Blade.docx')">word file</button>
@@ -15,6 +134,7 @@
     <div class="footer">
         <p>I Created This Page To Help Me Finish The Task Soon As Posible (by:  MVFA)</p>
     </div>
+    -->
 
     <script>
         function downloadPDF(filePath, fileName) {
